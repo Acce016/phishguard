@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhishGuard — ML-Based Phishing Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg2: #0f1527;
+    --bg3: #151c35;
+    --border: rgba(99,120,255,0.15);
+    --border2: rgba(99,120,255,0.3);
+    --accent: #6378ff;
+    --accent2: #00e5b0;
+    --danger: #ff4d6a;
+    --safe: #00e5b0;
+    --warn: #ffb340;
+    --text: #e8eaf6;
+    --muted: #7b82a8;
+    --card: #111729;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(99,120,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,120,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrapper { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 0 24px 60px; }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .logo-text { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  .logo-text span { color: var(--accent2); }
+  .header-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+    border: 1px solid rgba(0,229,176,0.3);
+    padding: 5px 12px;
+    border-radius: 20px;
+    letter-spacing: 1px;
+  }
+  .hero { text-align: center; margin-bottom: 48px; }
+  .hero h1 { font-size: 42px; font-weight: 600; line-height: 1.15; margin-bottom: 14px; letter-spacing: -1px; }
+  .hero h1 em {
+    font-style: normal;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p { color: var(--muted); font-size: 16px; max-width: 520px; margin: 0 auto; line-height: 1.7; }
+  .input-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 32px;
+    transition: border-color 0.3s;
+  }
+  .input-section:focus-within { border-color: var(--border2); }
+  .input-label { font-size: 12px; font-family: 'Space Mono', monospace; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; display: block; }
+  .input-row { display: flex; gap: 12px; align-items: stretch; }
+  .url-input {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 15px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .url-input::placeholder { color: var(--muted); font-size: 13px; }
+  .url-input:focus { border-color: var(--accent); }
+  .scan-btn {
+    background: linear-gradient(135deg, var(--accent), #8a6fff);
+    border: none;
+    border-radius: 10px;
+    padding: 14px 28px;
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: opacity 0.2s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .scan-btn:hover { opacity: 0.9; }
+  .scan-btn:active { transform: scale(0.98); }
+  .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .model-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 32px; }
+  .model-stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+  .model-stat-label { font-size: 11px; font-family: 'Space Mono', monospace; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .model-stat-value { font-size: 20px; font-weight: 600; color: var(--accent2); font-family: 'Space Mono', monospace; }
+  .result-panel { display: none; animation: fadeIn 0.4s ease; }
+  .result-panel.visible { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .verdict-card { border-radius: 16px; padding: 28px; margin-bottom: 20px; border: 1px solid; display: flex; align-items: center; gap: 24px; }
+  .verdict-card.phishing { background: rgba(255,77,106,0.07); border-color: rgba(255,77,106,0.3); }
+  .verdict-card.legitimate { background: rgba(0,229,176,0.07); border-color: rgba(0,229,176,0.3); }
+  .verdict-card.suspicious { background: rgba(255,179,64,0.07); border-color: rgba(255,179,64,0.3); }
+  .verdict-icon { font-size: 52px; line-height: 1; flex-shrink: 0; }
+  .verdict-content { flex: 1; }
+  .verdict-label { font-size: 12px; font-family: 'Space Mono', monospace; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .verdict-card.phishing .verdict-label { color: var(--danger); }
+  .verdict-card.legitimate .verdict-label { color: var(--safe); }
+  .verdict-card.suspicious .verdict-label { color: var(--warn); }
+  .verdict-title { font-size: 28px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.5px; }
+  .verdict-card.phishing .verdict-title { color: var(--danger); }
+  .verdict-card.legitimate .verdict-title { color: var(--safe); }
+  .verdict-card.suspicious .verdict-title { color: var(--warn); }
+  .verdict-desc { color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .confidence-block { margin-top: 16px; }
+  .confidence-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .conf-label { font-size: 13px; color: var(--muted); }
+  .conf-value { font-family: 'Space Mono', monospace; font-size: 14px; font-weight: 700; }
+  .conf-bar-bg { height: 6px; background: var(--bg3); border-radius: 99px; overflow: hidden; }
+  .conf-bar-fill { height: 100%; border-radius: 99px; transition: width 0.8s cubic-bezier(0.16,1,0.3,1); }
+  .phishing .conf-bar-fill { background: var(--danger); }
+  .legitimate .conf-bar-fill { background: var(--safe); }
+  .suspicious .conf-bar-fill { background: var(--warn); }
+  .section-title { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+  .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .feature-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .feature-name { font-size: 11px; font-family: 'Space Mono', monospace; color: var(--muted); margin-bottom: 8px; }
+  .feature-value { font-size: 15px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .feature-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-safe { background: var(--safe); }
+  .dot-danger { background: var(--danger); }
+  .dot-warn { background: var(--warn); }
+  .api-results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+  .api-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .api-card-title { font-size: 11px; font-family: 'Space Mono', monospace; color: var(--muted); margin-bottom: 8px; letter-spacing: 1px; text-transform: uppercase; }
+  .api-card-value { font-size: 14px; font-weight: 500; }
+  .scanning-overlay { display: none; text-align: center; padding: 40px; animation: fadeIn 0.3s ease; }
+  .scanning-overlay.visible { display: block; }
+  .scan-spinner { width: 48px; height: 48px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .scan-text { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--muted); }
+  .footer { border-top: 1px solid var(--border); padding-top: 28px; display: flex; justify-content: space-between; align-items: center; margin-top: 48px; }
+  .footer-text { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .footer-badge { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); text-align: right; }
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 28px; }
+    .model-strip { grid-template-columns: repeat(2, 1fr); }
+    .input-row { flex-direction: column; }
+    .api-results { grid-template-columns: 1fr; }
+    .footer { flex-direction: column; gap: 12px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <div class="logo-text">Phish<span>Guard</span></div>
+    </div>
+    <div class="header-badge">ML-POWERED · RF MODEL</div>
+  </header>
+
+  <div class="hero">
+    <h1>Detect <em>Phishing Websites</em><br>in Real Time</h1>
+    <p>Powered by a Random Forest classifier trained on 11,055 URLs achieving 97.26% accuracy, enhanced with Google Safe Browsing and VirusTotal threat intelligence.</p>
+  </div>
+
+  <div class="model-strip">
+    <div class="model-stat"><div class="model-stat-label">Accuracy</div><div class="model-stat-value">97.26%</div></div>
+    <div class="model-stat"><div class="model-stat-label">Precision</div><div class="model-stat-value">0.973</div></div>
+    <div class="model-stat"><div class="model-stat-label">Recall</div><div class="model-stat-value">0.973</div></div>
+    <div class="model-stat"><div class="model-stat-label">F1-Score</div><div class="model-stat-value">0.973</div></div>
+  </div>
+
+  <div class="input-section">
+    <label class="input-label">Enter URL to Analyse</label>
+    <div class="input-row">
+      <input class="url-input" id="urlInput" type="text" placeholder="e.g. https://secure-login.paypal.verification-check.com/verify" spellcheck="false" />
+      <button class="scan-btn" id="scanBtn" onclick="analyseURL()">🔍 Scan URL</button>
+    </div>
+  </div>
+
+  <div class="scanning-overlay" id="scanningOverlay">
+    <div class="scan-spinner"></div>
+    <div class="scan-text" id="scanText">Initialising scan...</div>
+  </div>
+
+  <div class="result-panel" id="resultPanel">
+    <div class="verdict-card" id="verdictCard">
+      <div class="verdict-icon" id="verdictIcon"></div>
+      <div class="verdict-content">
+        <div class="verdict-label" id="verdictLabel"></div>
+        <div class="verdict-title" id="verdictTitle"></div>
+        <div class="verdict-desc" id="verdictDesc"></div>
+        <div class="confidence-block">
+          <div class="confidence-row">
+            <span class="conf-label">Confidence Score</span>
+            <span class="conf-value" id="confValue"></span>
+          </div>
+          <div class="conf-bar-bg">
+            <div class="conf-bar-fill" id="confBar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="section-title">Threat Intelligence</p>
+    <div class="api-results">
+      <div class="api-card">
+        <div class="api-card-title">🔵 Google Safe Browsing</div>
+        <div class="api-card-value" id="googleResult">—</div>
+      </div>
+      <div class="api-card">
+        <div class="api-card-title">🟣 VirusTotal</div>
+        <div class="api-card-value" id="vtResult">—</div>
+      </div>
+    </div>
+
+    <p class="section-title">Feature Analysis (InfoGain Rankings)</p>
+    <div class="features-grid" id="featuresGrid"></div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-text">
+      © 2026 PhishGuard. All rights reserved.<br>
+      <span style="font-size:12px;">For educational and research purposes. Not a substitute for enterprise security tools.</span>
+    </div>
+    <div class="footer-badge">
+      Model: Random Forest<br>
+      Dataset: UCI Phishing Websites<br>
+      Engine: WEKA 3.8
+    </div>
+  </footer>
+</div>
+
+<script>
+async function analyseURL() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { document.getElementById('urlInput').focus(); return; }
+
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  document.getElementById('resultPanel').classList.remove('visible');
+  document.getElementById('scanningOverlay').classList.add('visible');
+
+  const steps = ['Extracting URL features...', 'Running Random Forest classifier...', 'Checking Google Safe Browsing...', 'Querying VirusTotal...', 'Computing final verdict...'];
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i < steps.length) document.getElementById('scanText').textContent = steps[i++];
+  }, 600);
+
+  try {
+    const response = await fetch('/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await response.json();
+    clearInterval(interval);
+    document.getElementById('scanningOverlay').classList.remove('visible');
+    renderResults(data);
+  } catch (e) {
+    clearInterval(interval);
+    document.getElementById('scanningOverlay').classList.remove('visible');
+    alert('Scan failed. Make sure the server is running.');
+  }
+
+  btn.disabled = false;
+}
+
+function renderResults(data) {
+  document.getElementById('resultPanel').classList.add('visible');
+
+  const card = document.getElementById('verdictCard');
+  card.className = 'verdict-card ' + data.verdict;
+
+  const icons = { phishing: '⚠️', suspicious: '🔶', legitimate: '✅' };
+  const labels = { phishing: 'Threat Detected', suspicious: 'Suspicious', legitimate: 'Safe' };
+  const titles = { phishing: 'Phishing Website', suspicious: 'Proceed With Caution', legitimate: 'Legitimate Website' };
+  const descs = {
+    phishing: 'This URL exhibits multiple high-risk indicators consistent with phishing patterns. Do not enter any personal information.',
+    suspicious: 'This URL shows some ambiguous characteristics. Verify the domain independently before submitting credentials.',
+    legitimate: 'This URL exhibits characteristics consistent with legitimate websites. No significant phishing indicators detected.'
+  };
+
+  document.getElementById('verdictIcon').textContent = icons[data.verdict];
+  document.getElementById('verdictLabel').textContent = labels[data.verdict];
+  document.getElementById('verdictTitle').textContent = titles[data.verdict];
+  document.getElementById('verdictDesc').textContent = descs[data.verdict];
+
+  const confVal = document.getElementById('confValue');
+  const colors = { phishing: 'var(--danger)', suspicious: 'var(--warn)', legitimate: 'var(--safe)' };
+  confVal.textContent = data.confidence + '%';
+  confVal.style.color = colors[data.verdict];
+  setTimeout(() => { document.getElementById('confBar').style.width = data.confidence + '%'; }, 100);
+
+  // Google Safe Browsing
+  const gResult = document.getElementById('googleResult');
+  if (data.googleSafeBrowsing.safe) {
+    gResult.innerHTML = '<span style="color:var(--safe)">✅ No threats detected</span>';
+  } else {
+    gResult.innerHTML = `<span style="color:var(--danger)">⚠️ Threats: ${data.googleSafeBrowsing.threats.join(', ')}</span>`;
+  }
+
+  // VirusTotal
+  const vtEl = document.getElementById('vtResult');
+  if (!data.virusTotal.available) {
+   vtEl.innerHTML = '<span style="color:var(--muted)">⏳ URL not yet indexed by VirusTotal</span>';
+  } else if (data.virusTotal.positives === 0) {
+    vtEl.innerHTML = `<span style="color:var(--safe)">✅ 0/${data.virusTotal.total} engines flagged</span>`;
+  } else {
+    vtEl.innerHTML = `<span style="color:var(--danger)">⚠️ ${data.virusTotal.positives}/${data.virusTotal.total} engines flagged</span>`;
+  }
+
+  // Features
+  const grid = document.getElementById('featuresGrid');
+  grid.innerHTML = '';
+  for (const [name, val] of Object.entries(data.features)) {
+    const div = document.createElement('div');
+    div.className = 'feature-card';
+    let dotClass, valText, color;
+    if (val === 1) { dotClass = 'dot-safe'; valText = 'Legitimate'; color = 'var(--safe)'; }
+    else if (val === -1) { dotClass = 'dot-danger'; valText = 'Phishing Indicator'; color = 'var(--danger)'; }
+    else { dotClass = 'dot-warn'; valText = 'Suspicious'; color = 'var(--warn)'; }
+    div.innerHTML = `<div class="feature-name">${name}</div><div class="feature-value"><div class="feature-dot ${dotClass}"></div><span style="color:${color}">${valText}</span></div>`;
+    grid.appendChild(div);
+  }
+}
+
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') analyseURL();
+});
+</script>
+</body>
+</html>
